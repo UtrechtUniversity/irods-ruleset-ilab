@@ -269,6 +269,18 @@ iiPostVaultStatusTransition(*folder, *actor, *newVaultStatus) {
 	        iiVaultGetActionActor(*folder, *actor, *actionActor);
 		iiAddActionLogRecord(*actionActor, *folder, "requested republication");
 	}
+        on (*newVaultStatus == ARCHIVE_REQUEST) {
+                iiVaultGetActionActor(*folder, *actor, *actionActor);
+                iiAddActionLogRecord(*actionActor, *folder, "submitted archive request");
+        }
+        on (*newVaultStatus == PENDING_ARCHIVE_REQUEST) {
+                iiVaultGetActionActor(*folder, *actor, *actionActor);
+                iiAddActionLogRecord(*actionActor, *folder, "archive request now pending");
+        }
+        on (*newVaultStatus == ARCHIVED) {
+                iiVaultGetActionActor(*folder, *actor, *actionActor);
+                iiAddActionLogRecord(*actionActor, *folder, "publication is archived");
+        }
 	on (true) {
 		nop;
 	}
@@ -388,3 +400,69 @@ iiGetPublicationTermsText(*folder, *result, *status, *statusInfo)
 		*statusInfo = "Failed to read Terms and Agreements from disk. Please contact Yoda administrators";
 	}
 }
+
+# \brief Request for archiving a published dataset.
+#
+# \param[in]  folder      Path of folder in vault to submit for publication
+# \param[out] status      Status of the action
+# \param[out] statusInfo  Informative message when action was not successful
+#
+iiVaultArchiveRequest(*folder, *status, *statusInfo) {
+        *status = 'Success';
+        *statusInfo = '';
+
+	#msiString2KeyValPair("", *kvp);
+        #msiAddKeyVal(*kvp, 'org_vault_status', ARCHIVE_REQUEST);
+
+        #*err = errormsg(msiSetKeyValuePairsToObj( *kvp, *folder, "-C"), *errmsg);
+	#if (*err<0) {
+	#	*status = '9999';
+	#	*statusInfo = *errmsg;
+        #}
+
+        iiVaultRequestStatusTransition(*folder, ARCHIVE_REQUEST, *status, *statusInfo);
+        if (*status == "Success") {
+                iiAdminVaultActions();
+        }
+}
+
+
+# \brief Request for archiving a published dataset.
+#
+# \param[in]  folder      Path of folder in vault to submit for publication
+# \param[out] status      Status of the action
+# \param[out] statusInfo  Informative message when action was not successful
+#
+iiVaultCancelArchiveRequest(*folder, *status, *statusInfo) {
+        *status = 'Success';
+        *statusInfo = '';
+
+        iiVaultRequestStatusTransition(*folder, 'PUBLISHED', *status, *statusInfo);
+        if (*status == "Success") {
+                iiAdminVaultActions();
+        }
+}
+
+
+# \brief Request for archiving a published dataset.
+#
+# \param[in]  folder      Path of folder in vault to submit for publication
+# \param[out] status      Status of the action
+# \param[out] statusInfo  Informative message when action was not successful
+#
+iiVaultRemoveFromArchive(*folder, *status, *statusInfo) {
+        *status = 'Success';
+        *statusInfo = '';
+
+        #iiVaultRequestStatusTransition(*folder, SUBMITTED_FOR_PUBLICATION, *status, *statusInfo);
+        #if (*status == "Success") {
+        #        iiAdminVaultActions();
+        #}
+}
+
+
+
+
+
+
+

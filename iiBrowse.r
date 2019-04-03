@@ -233,6 +233,7 @@ iiCollectionDetailsVault(*path, *kvp) {
             *vaultStatus == PENDING_DEPUBLICATION ||
             *vaultStatus == DEPUBLISHED ||
             *vaultStatus == PENDING_REPUBLICATION ||
+            *vaultStatus == ARCHIVED || *vaultStatus == PENDING_ARCHIVE_REQUEST || *vaultStatus == ARCHIVE_REQUEST ||
             *vaultStatus == COMPLETE) {
                 *kvp.isVaultPackage = "yes";
                 iiGetLatestVaultMetadataXml(*path, *metadataXmlPath, *metadataXmlSize);

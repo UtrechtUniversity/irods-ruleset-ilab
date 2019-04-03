@@ -1,0 +1,114 @@
+# \file      iiArchive.r
+# \brief     This file contains rules related to archiving a published datapackage
+
+# \author    Lazlo Westerhof
+# \copyright Copyright (c) 2017-2018, Utrecht University. All rights reserved.
+# \license   GPLv3, see LICENSE.
+
+
+
+# \brief Routine to watch status of given datapackage that is in archival process.
+# 	 If this is finished successfully, the
+#	 - org_vault_status of datapackage is set to ARCHIVED
+#        - corresponding datamanager is notified via mail. 
+#
+# \param[in] vaultPackage       path to package in the vault to publish
+# \param[out] status            status of the publication
+#
+iiProcessArchiveRequestPending(*vaultPackage, *status) {
+        *status = "Unknown";
+
+        # Check preconditions
+        iiVaultStatus(*vaultPackage, *vaultStatus);
+        if (*vaultStatus != PENDING_ARCHIVE_REQUEST) {
+                *status = "NotAllowed";
+                succeed;
+        }
+
+        # Check if all is in order regarding archiving for this package
+	# Use sWORD2 client library to track progress
+
+        # If finished -> finalize all involved.
+	
+	# Add to action log
+
+
+	# Set package vault_status to 'ARCHIVED'
+        msiString2KeyValPair("", *kvp);
+        msiAddKeyVal(*kvp, UUORGMETADATAPREFIX ++ 'vault_status', ARCHIVED);
+        *err = msiSetKeyValuePairsToObj( *kvp, *vaultPackage, "-C");
+        if (*err!=0 ) {
+                *status = 'InternalError';
+                succeed;
+        }
+
+        # All is well so notify datamanager by mail (use org_publication_approval_actor)
+
+        # retrieve package title for notifications.
+	*title = "";
+	*titleKey = UUUSERMETADATAPREFIX ++ "0_Title";
+	foreach(*row in SELECT META_COLL_ATTR_VALUE WHERE COLL_NAME = *vaultPackage AND META_COLL_ATTR_NAME = *titleKey) {
+                *title = *row.META_COLL_ATTR_VALUE;
+		break;
+	}
+
+        # retrieve datamanager based on metadata_attr = org_publication_approval_actor
+        *datamanager = "";
+        *actorKey = UUORGMETADATAPREFIX ++ "publication_approval_actor";
+        foreach(*row in SELECT META_COLL_ATTR_VALUE WHERE COLL_NAME = *vaultPackage AND META_COLL_ATTR_NAME = *actorKey) {
+              	*userNameAndZone = *row.META_COLL_ATTR_VALUE;
+                uuGetUserAndZone(*userNameAndZone, *datamanager, *zone);
+                break;
+        }
+
+        # retrieve yodaDOI - must become DANS DOI!! org_publication_yodaDOI
+        *yodaDOI = "";
+        *yodaDOIKey = UUUSERMETADATAPREFIX ++ "publication_yodaDOI";
+        foreach(*row in SELECT META_COLL_ATTR_VALUE WHERE COLL_NAME = *vaultPackage AND META_COLL_ATTR_NAME = *yodaDOIKey) {
+                *yodaDOI = *row.META_COLL_ATTR_VALUE;
+                break;
+        }
+
+
+        uuNewArchivedPackageMail(*datamanager, uuClientFullName, *title, *yodaDOI, *mailStatus, *message);
+        if (int(*mailStatus) != 0) {
+                writeLine("serverLog", "iiProcessArchiveRequestPending: Datamanager notification failed: *message");
+        }
+
+	*status = 'Success';
+}
+
+
+# \brief Routine to start archiving given published vaultpackage
+# This will change org_vault_status to PENDING_ARCHIVE_REQUEST
+#
+# \param[in] vaultPackage       path to package in the vault to publish
+# \param[out]
+iiProcessArchiveRequest(*vaultPackage, *status) {
+        *status = "Unknown";
+
+        # Check preconditions
+        iiVaultStatus(*vaultPackage, *vaultStatus);
+        if (*vaultStatus != ARCHIVE_REQUEST) {
+                *status = "NotAllowed";
+                succeed;
+        }
+
+	# User SWORD2 library to start archiving at DANS
+
+	msiString2KeyValPair("", *kvp);
+        msiAddKeyVal(*kvp, UUORGMETADATAPREFIX ++ 'vault_status', PENDING_ARCHIVE_REQUEST);
+
+	*err = msiSetKeyValuePairsToObj( *kvp, *vaultPackage, "-C");
+	if (*err!=0 ) {
+                *status = 'InternalError';
+                succeed;
+        }
+
+	*status = 'Success';
+}
+
+
+
+
+
