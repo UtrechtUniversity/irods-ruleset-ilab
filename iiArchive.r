@@ -12,7 +12,7 @@
 #	 - org_vault_status of datapackage is set to ARCHIVED
 #        - corresponding datamanager is notified via mail. 
 #
-# \param[in] vaultPackage       path to package in the vault to publish
+# \param[in] vaultPackage       path to published package in the vault to be arhived
 # \param[out] status            status of the publication
 #
 iiProcessArchiveRequestPending(*vaultPackage, *status) {
@@ -51,6 +51,7 @@ iiProcessArchiveRequestPending(*vaultPackage, *status) {
                 *title = *row.META_COLL_ATTR_VALUE;
 		break;
 	}
+	writeLine('stdout', *title);
 
         # retrieve datamanager based on metadata_attr = org_publication_approval_actor
         *datamanager = "";
@@ -60,14 +61,17 @@ iiProcessArchiveRequestPending(*vaultPackage, *status) {
                 uuGetUserAndZone(*userNameAndZone, *datamanager, *zone);
                 break;
         }
+	writeLine('stdout', *datamanager);
+
 
         # retrieve yodaDOI - must become DANS DOI!! org_publication_yodaDOI
         *yodaDOI = "";
-        *yodaDOIKey = UUUSERMETADATAPREFIX ++ "publication_yodaDOI";
+        *yodaDOIKey = UUORGMETADATAPREFIX ++ "publication_yodaDOI";
         foreach(*row in SELECT META_COLL_ATTR_VALUE WHERE COLL_NAME = *vaultPackage AND META_COLL_ATTR_NAME = *yodaDOIKey) {
                 *yodaDOI = *row.META_COLL_ATTR_VALUE;
                 break;
         }
+	writeLine('serverLog', *yodaDOI);
 
 
         uuNewArchivedPackageMail(*datamanager, uuClientFullName, *title, *yodaDOI, *mailStatus, *message);
@@ -82,19 +86,33 @@ iiProcessArchiveRequestPending(*vaultPackage, *status) {
 # \brief Routine to start archiving given published vaultpackage
 # This will change org_vault_status to PENDING_ARCHIVE_REQUEST
 #
-# \param[in] vaultPackage       path to package in the vault to publish
+# \param[in] vaultPackage       path to published package in the vault to be archived
 # \param[out]
 iiProcessArchiveRequest(*vaultPackage, *status) {
         *status = "Unknown";
 
-        # Check preconditions
+        # Check preconditions - must have status ARCHIVE_REQUEST
         iiVaultStatus(*vaultPackage, *vaultStatus);
         if (*vaultStatus != ARCHIVE_REQUEST) {
                 *status = "NotAllowed";
                 succeed;
         }
 
+        # Create bagit from *vaultPackage
+	*bagitPath = '';
+	iiRuleBagit(*vaultPackage, *bagitPath, *status);
+        if (*status != 'Success') {
+	    *status = "ErrorCreatingBagit"; # mss hier gelijk de status overnemen van iiRuleBagit
+	    succeed;
+        }
+
 	# User SWORD2 library to start archiving at DANS
+	*urlResponse = '';
+        iiRuleSword2(*bagitPath, *urlResponse, *status);
+	if (*status != 'Success') {
+	    *status = "ErrorStartingBagTransfer";  # mss hier gelijk status uit iiRuleSword2 
+            succeed;
+        }
 
 	msiString2KeyValPair("", *kvp);
         msiAddKeyVal(*kvp, UUORGMETADATAPREFIX ++ 'vault_status', PENDING_ARCHIVE_REQUEST);
