@@ -16,7 +16,10 @@
 # \param[out] status            status of the publication
 #
 iiProcessArchiveRequestPending(*vaultPackage, *status) {
-        *status = "Unknown";
+        # ER IS NU EEN BAG DIE IS AANGEBODEN.
+	# ER DIENT DUS EEN url aanwezig te zijn
+
+	*status = "Unknown";
 
         # Check preconditions
         iiVaultStatus(*vaultPackage, *vaultStatus);
@@ -25,8 +28,16 @@ iiProcessArchiveRequestPending(*vaultPackage, *status) {
                 succeed;
         }
 
-        # Check if all is in order regarding archiving for this package
+        # PROGRESSION CHECK regarding transfer to DANS - SWORD2 client
 	# Use sWORD2 client library to track progress
+        # Collect archive_url and based on that, check status.
+        *attrArchiveUrl = UUORGMETADATAPREFIX ++ "archive_url";
+        foreach(*row in SELECT META_COLL_ATTR_VALUE WHERE COLL_NAME = *vaultPackage AND META_COLL_ATTR_NAME = *attrArchiveUrl) {
+		*archiveUrl = *row.META_COLL_ATTR_VALUE;
+		break;
+        }
+
+
 
         # If finished -> finalize all involved.
 	
@@ -91,6 +102,19 @@ iiProcessArchiveRequestPending(*vaultPackage, *status) {
 iiProcessArchiveRequest(*vaultPackage, *status) {
         *status = "Unknown";
 
+        *uniqueMaker = '';
+	# Used in collection name on virtual disk under /archives/*uniqueMakes
+        # As well as the bagit name (as this is bagit name is used on physical drive as well.
+	# On physical drive all bagits are collected within one folder and that requires for the bagit names to be unique as well
+        foreach(*row in SELECT COLL_ID WHERE COLL_NAME = *vaultPackage) {
+		*uniqueMaker =  *row.COLL_ID;
+                break;
+        }
+	if(*uniqueMaker == '') {
+		*status = 'NoCollectionID';
+		succeed;
+	}
+
         # Check preconditions - must have status ARCHIVE_REQUEST
         iiVaultStatus(*vaultPackage, *vaultStatus);
         if (*vaultStatus != ARCHIVE_REQUEST) {
@@ -98,21 +122,67 @@ iiProcessArchiveRequest(*vaultPackage, *status) {
                 succeed;
         }
 
+        # BAGIT CREATION
         # Create bagit from *vaultPackage
-	*bagitPath = '';
-	iiRuleBagit(*vaultPackage, *bagitPath, *status);
+	*bagitPath = '/tempZone/yoda/archives/*uniqueMaker/*uniqueMaker' ++ 'bagit.tar';  # naam en folder gebaseerd op ID package?
+	iiRuleCreateBagit(*vaultPackage, *bagitPath, *status);
         if (*status != 'Success') {
 	    *status = "ErrorCreatingBagit"; # mss hier gelijk de status overnemen van iiRuleBagit
 	    succeed;
         }
+	# Add KVP org_archive_bagit_irods_path to *vaultPackage
+        msiString2KeyValPair("", *kvp);
+        msiAddKeyVal(*kvp, UUORGMETADATAPREFIX ++ 'archive_bagit_irods_path', *bagitPath);
 
-	# User SWORD2 library to start archiving at DANS
-	*urlResponse = '';
-        iiRuleSword2(*bagitPath, *urlResponse, *status);
-	if (*status != 'Success') {
-	    *status = "ErrorStartingBagTransfer";  # mss hier gelijk status uit iiRuleSword2 
+        *err = msiSetKeyValuePairsToObj( *kvp, *vaultPackage, "-C");
+        if (*err!=0 ) {
+                *status = 'InternalError';
+                succeed;
+        }
+	
+
+	# COPY BAGIT TO FILE SYSTEM
+        # Physical copy to system in order for SWORD2 to be able to transfer it to DANS EASY 
+	*bagitPhysicalPath = '/etc/irods/irods-ruleset-research/tools/*uniqueMaker' ++ 'bagit.tar';  
+        iiRuleCopyDataObjectToFileSystem(*bagitPath, *bagitPhysicalPath, *status);
+        if (*status != 'Success') {
+            *status = "ErrorCreatingBagit"; # mss hier gelijk de status overnemen van iiRuleBagit
             succeed;
         }
+        # Add KVP org_archive_bagit_physical_path to *vaultPackage
+        msiString2KeyValPair("", *kvp);
+        msiAddKeyVal(*kvp, UUORGMETADATAPREFIX ++ 'archive_bagit_physical_path', *bagitPhysicalPath);
+
+        *err = msiSetKeyValuePairsToObj( *kvp, *vaultPackage, "-C");
+        if (*err!=0 ) {
+                *status = 'InternalError';
+                succeed;
+        }
+
+        writeLine('serverLog', 'iRODS-beforeSWORD2');
+	# TRANSFER TO DANS ACT EASY USING SWORD2 INTERFACE
+        # User SWORD2 library to start archiving at DANS
+        # This can be asynchronous from creating the bag - maybe do this under 'PENDING_ARCHIVE_REQUEST' handling?
+        *urlArchiveStatus = '';
+        iiRuleSword2(*bagitPhysicalPath, *urlArchiveStatus, *status);
+        if (*status != 'Success') {
+            *status = "ErrorStartingBagTransfer";  # mss hier gelijk status uit iiRuleSword2
+            succeed;
+        }
+
+	# Bag has been offered to DANS.
+	# the archival url needs to be save for polling the progress
+        msiString2KeyValPair("", *kvp);
+        msiAddKeyVal(*kvp, UUORGMETADATAPREFIX ++ 'archive_status_url', *urlArchiveStatus);
+
+        *err = msiSetKeyValuePairsToObj( *kvp, *vaultPackage, "-C");
+        if (*err!=0 ) {
+                *status = 'InternalError';
+                succeed;
+        }
+
+        succeed;
+
 
 	msiString2KeyValPair("", *kvp);
         msiAddKeyVal(*kvp, UUORGMETADATAPREFIX ++ 'vault_status', PENDING_ARCHIVE_REQUEST);
