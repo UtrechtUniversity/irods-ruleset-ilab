@@ -75,7 +75,7 @@ def doSwordit(callback, bagitFile):
 
     callback.writeLine('serverLog', 'SWORD2 before connection')
 
-    c = Connection(SD_URI, user_name = "yodatest", user_pass="***REMOVED***", http_impl = http_impl)
+    c = Connection(SD_URI, user_name = "yodatest", user_pass="PLACEHOLDER", http_impl = http_impl)
     
     callback.writeLine('serverLog', 'SWORD2 after connection')
    
@@ -107,7 +107,7 @@ def doSwordit(callback, bagitFile):
 
         #callback.writeLine('serverLog', receipt.content)
 
-        #c2 = Connection(statementURI, user_name = "yodatest", user_pass="***REMOVED***", http_impl = http_impl)
+        #c2 = Connection(statementURI, user_name = "yodatest", user_pass="PLACEHOLDER", http_impl = http_impl)
         #resp = c2.get_resource(statementURI)
         #callback.writeLine('serverLog', resp)
 
