@@ -36,16 +36,18 @@ def iiRuleCopyDataObjectToFileSystem(rule_args, callback, rei):
 #\ iiRuleSword2
 #\ Brief transfer a bagit to dans and retrieve a url for polling of transfer status
 #\[in]   rule_args[0] bagitPhysicalPath
-#\[out]  rule_args[1] url
+#\[out]  rule_args[1] statementURI
 #\[out]  rule_args[2] status
 
 def iiRuleSword2(rule_args, callback, rei):
     bagitPhysicalPath = rule_args[0]
-    rule_args[1] = 'https://dans.dans.dans.nl/dans'
 
-    doSwordit(callback, bagitPhysicalPath)
+    response = doSwordit(callback, bagitPhysicalPath)
+
     callback.writeLine('serverLog', 'SWORD')
-    rule_args[2] = 'Success' 
+
+    rule_args[1] = response['statementURI']
+    rule_args[2] = response['status'] 
 
 
 #--------------------- End of interface layer from irods rules
@@ -57,93 +59,73 @@ def doSwordit(callback, bagitFile):
     zipFile = bagitFile
     SD_URI = 'https://act.easy.dans.knaw.nl/sword2/collection/1'
 
+    response = {}
+    response['status'] = 'Unknown'
+    response['statementURI'] = ''
+
     from sword2 import Connection
 
+    from sword2 import http_layer    
+    http_impl = http_layer.HttpLib2Layer("/var/lib/irods", timeout=30.0, ca_certs=None)
+
+    callback.writeLine('serverLog', 'AFter http_impl')
+
     from sword2 import sword2_logging
+    #sword2_logging.create_logging_config(None)
 
-    callback.writeLine('serverLog', 'before connection')
+    callback.writeLine('serverLog', 'SWORD2 before connection')
 
-
-    return 'Success'
-
-    ####################################
-    # importing the requests library 
-    import requests 
-  
-    # api-endpoint 
-    URL = "http://maps.googleapis.com/maps/api/geocode/json"
-  
-    # location given here 
-    location = "delhi technological university"
-  
-    # defining a params dict for the parameters to be sent to the API 
-    PARAMS = {'address':location} 
-  
-    # sending get request and saving the response as response object 
-    r = requests.get(url = URL, params = PARAMS) 
-  
-    # extracting data in json format 
-    data = r.json() 
-
-    #latitude = data['results'][0]['geometry']['location']['lat'] 
-    #longitude = data['results'][0]['geometry']['location']['lng'] 
-    # formatted_address = data['results'][0]['formatted_address'] 
-
-
-    callback.writeLine('serverLog', 'HLALLALALALAL')
-
-    return 'Success'
-
-    ############################
-
-
-
-    c = Connection(SD_URI, user_name = "yodatest", user_pass="***REMOVED***")
-    callback.writeLine('serverLog', 'after connection')
-
-    return 'Success'
-
-    with open("package.zip", "r") as pkg:
-    # print('hallo-2')
+    c = Connection(SD_URI, user_name = "yodatest", user_pass="***REMOVED***", http_impl = http_impl)
+    
+    callback.writeLine('serverLog', 'SWORD2 after connection')
+   
+    with open(bagitFile, "r") as pkg:
         receipt = c.create(col_iri = SD_URI,
                                 payload = pkg,
-                                mimetype = "application/zip",
-                                filename = "package.zip",
+                                mimetype = "application/tar",
+                                filename = "package.tar",
                                 packaging = 'http://purl.org/net/sword/package/Binary',
                                 in_progress = False)    # As the deposit isn't yet finished
 
+        callback.writeLine('serverLog', '[SWORD2]se iri=' + receipt.se_iri)
+        callback.writeLine('serverLog', '[SWORD2]media iri=' + receipt.edit_media)
 
-    print('se iri=' + receipt.se_iri)
-    print('media iri=' + receipt.edit_media)
+        callback.writeLine('serverLog', '[SWORD2]edit iri=' + receipt.edit)
 
-    print('edit iri=' + receipt.edit)
+        callback.writeLine('serverLog', '##################')
+        #callback.writeLine('serverLog', receipt.links)
 
-    print('##################')
-    print(receipt.links)
+        callback.writeLine('serverLog', '#########')
+        callback.writeLine('serverLog', 'StatementURI = ' )
+        callback.writeLine('serverLog', receipt.links['http://purl.org/net/sword/terms/statement'][0]['href'])
+        statementURI = receipt.links['http://purl.org/net/sword/terms/statement'][0]['href']
 
-    print('#########')
-    print(receipt.links['http://purl.org/net/sword/terms/statement'][0]['href'])
-    statementURI = receipt.links['http://purl.org/net/sword/terms/statement'][0]['href']
+        response['status'] = 'Success'
+        response['statementURI'] = statementURI
 
-    #print(receipt.content)
+        return response
 
-    c2 = Connection(statementURI, user_name = "yodatest", user_pass="***REMOVED***")
-    resp = c2.get_resource(statementURI)
-    print(resp)
+        #callback.writeLine('serverLog', receipt.content)
 
-    #    `ContentWrapper.response_headers`    -- response headers
-    #    `ContentWrapper.content` -- body of response from server (the file or package)
-    #    `ContentWrapper.code`    -- status code ('200' on success.)
+        #c2 = Connection(statementURI, user_name = "yodatest", user_pass="***REMOVED***", http_impl = http_impl)
+        #resp = c2.get_resource(statementURI)
+        #callback.writeLine('serverLog', resp)
 
-
-    print(':::::::::::::::::::::::::')
-    print(resp.response_headers)
-    print(':::::::::::::::::::::::::')
-    print(resp.content)
-    print(':::::::::::::::::::::::::')
-    print(resp.code)
+        #    `ContentWrapper.response_headers`    -- response headers
+        #    `ContentWrapper.content` -- body of response from server (the file or package)
+        #    `ContentWrapper.code`    -- status code ('200' on success.)
 
 
+        #callback.writeLine('serverLog', '::::::::::::HEADERS :::::::::::::')
+        #callback.writeLine('serverLog', resp.response_headers)
+        #callback.writeLine('serverLog', ':::::::::::CONTENT::::::::::::::')
+        #callback.writeLine('serverLog', resp.content)
+        #callback.writeLine('serverLog', '::::::::::CODE:::::::::::::::')
+        #callback.writeLine('serverLog', resp.code)
+
+    response['status'] = 'ErrorSWORD2'
+    
+    return response
 
 
 def followSwordTransfer(callback):
@@ -153,7 +135,6 @@ def followSwordTransfer(callback):
 def copyDataObjectToFileSystem(callback, irodsSourcePath, physicalDestination):
     ret_val = {}
 
-    #ret_val = callback.msiDataObjOpen('objPath=/tempZone/home/research-initial/research-initial[1556270526]-bag.tar', 0)
     ret_val = callback.msiDataObjOpen('objPath=' + irodsSourcePath, 0)
     fd = ret_val['arguments'][1]
 
@@ -162,7 +143,6 @@ def copyDataObjectToFileSystem(callback, irodsSourcePath, physicalDestination):
 
     callback.writeLine('stdout', str(bytesBuf.len))
 
-    #f = open("/etc/irods/irods-ruleset-research/tools/blabla.tar", "wb")
     f = open(physicalDestination, "wb")
     f.write(bytearray(bytesBuf.buf))
     f.close()
@@ -232,15 +212,15 @@ def createBagit(callback, packagePath, bagitPath):
             ret_val = callback.msiGetMoreRows(genQueryInp, genQueryOut, 0)
             genQueryOut = ret_val['arguments'][1]
 
-    # Write payload manifest to NEWBAGITROOT/manifest-md5.txt
-    ret_val = callback.msiDataObjCreate(new_bagIt_root + '/manifest-md5.txt', 'forceFlag=1', 0)
+    # Write payload manifest to NEWBAGITROOT/manifest-sha2.txt
+    ret_val = callback.msiDataObjCreate(new_bagIt_root + '/manifest-sha2.txt', 'forceFlag=1', 0)
     fd = ret_val['arguments'][2]
     callback.msiDataObjWrite(fd, 'stdout', 0)
     callback.msiDataObjClose(fd, 0)
     callback.msiFreeBuffer('stdout')
 
 
-    # Write tagmanifest file to NEWBAGITROOT/tagmanifest-md5.txt 
+    # Write tagmanifest file to NEWBAGITROOT/tagmanifest-sha2.txt 
     # bag-info.txt MIST - required?
     
     # bagit.txt
@@ -249,9 +229,9 @@ def createBagit(callback, packagePath, bagitPath):
     callback.writeLine('stdout', 'bagit.txt   ' + chksum)
     
     # manifest-md5.txt
-    ret_val = callback.msiDataObjChksum(new_bagIt_root + '/manifest-md5.txt', 'forceChksum', 'dummy_str')
+    ret_val = callback.msiDataObjChksum(new_bagIt_root + '/manifest-sha2.txt', 'forceChksum', 'dummy_str')
     chksum = ret_val['arguments'][2]
-    callback.writeLine('stdout', 'manifest-md5.txt   ' + chksum)
+    callback.writeLine('stdout', 'manifest-sha2.txt   ' + chksum)
     
     # metadata/dataset.xml
     ret_val = callback.msiDataObjChksum(new_bagIt_root + '/metadata/dataset.xml', 'forceChksum', 'dummy_str')
@@ -260,8 +240,8 @@ def createBagit(callback, packagePath, bagitPath):
 
     # metadata/files.xml is missing. - required?
 
-    # TAGMANIFEST: Write entire stdout buffer in tagminifest-md5,txt
-    ret_val = callback.msiDataObjCreate(new_bagIt_root + '/tagmanifest-md5.txt', 'forceFlag=1', 0)
+    # TAGMANIFEST: Write entire stdout buffer in tagminifest-sha2,txt
+    ret_val = callback.msiDataObjCreate(new_bagIt_root + '/tagmanifest-sha2.txt', 'forceFlag=1', 0)
     fd = ret_val['arguments'][2]
     callback.msiDataObjWrite(fd, 'stdout', 0)
     callback.msiDataObjClose(fd, 0)
@@ -272,8 +252,11 @@ def createBagit(callback, packagePath, bagitPath):
     #callback.msiTarFileCreate(tar_file_path, new_bagIt_root, 'null', 'forceFlag=1')
     callback.msiTarFileCreate(bagitPath, new_bagIt_root, 'null', 'forceFlag=1')
 
-    visiblePath = '/tempZone/home/research-initial/bag.tar' 
+    # trick to be able to access easliy through webDav
+    visiblePath = '/tempZone/home/research-initial/bag2.tar' 
     callback.msiTarFileCreate(visiblePath, new_bagIt_root, 'null', 'forceFlag=1')
+
+
     return 'Success'
 
 

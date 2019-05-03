@@ -100,7 +100,8 @@ iiProcessArchiveRequestPending(*vaultPackage, *status) {
 # \param[in] vaultPackage       path to published package in the vault to be archived
 # \param[out]
 iiProcessArchiveRequest(*vaultPackage, *status) {
-        *status = "Unknown";
+        writeLine('serverLog', 'START:ProcessArchiveRequest: ' ++ *vaultPackage);
+	*status = "Unknown";
 
         *uniqueMaker = '';
 	# Used in collection name on virtual disk under /archives/*uniqueMakes
@@ -180,6 +181,7 @@ iiProcessArchiveRequest(*vaultPackage, *status) {
                 *status = 'InternalError';
                 succeed;
         }
+	writeLine('serverLog', 'END:ProcessArchiveRequest: ' ++ *vaultPackage);
 
         succeed;
 
