@@ -11,7 +11,7 @@
 # DANS EASY ENDPOINT
 DANS_URI = 'https://act.easy.dans.knaw.nl/sword2/collection/1'
 DANS_USERNAME = 'yodatest';
-DANS_PWD = 'y$6]AQ5$BZ\Z' 
+DANS_PWD = PLACEHOLDER 
 
 # Cache location for httplib2
 http_layer_cache = '/var/lib/irods'
