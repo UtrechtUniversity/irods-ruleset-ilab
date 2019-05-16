@@ -31,65 +31,75 @@ iiProcessArchiveRequestPending(*vaultPackage, *status) {
         # PROGRESSION CHECK regarding transfer to DANS - SWORD2 client
 	# Use sWORD2 client library to track progress
         # Collect archive_url and based on that, check status.
-        *attrArchiveUrl = UUORGMETADATAPREFIX ++ "archive_url";
+        *attrArchiveUrl = UUORGMETADATAPREFIX ++ "archive_status_url";
         foreach(*row in SELECT META_COLL_ATTR_VALUE WHERE COLL_NAME = *vaultPackage AND META_COLL_ATTR_NAME = *attrArchiveUrl) {
-		*archiveUrl = *row.META_COLL_ATTR_VALUE;
+		*statementURI = *row.META_COLL_ATTR_VALUE;
 		break;
         }
 
+	writeLine('serverLog', 'PENDING statementURI: ' ++ *statementURI);
 
+        *sword2Status = '';
+        iiRuleSword2Status(*statementURI, *sword2Status, *status);	
+        #iiRuleSword2Status(*statementURI, *sword2Status, *status); 
+	if (*status != 'Success') {
+            writeLine('serverLog', 'Sword2 tech status=' ++ *status);
+	    succeed;
+        }
 
-        # If finished -> finalize all involved.
-	
-	# Add to action log
+	writeLine('serverLog', 'Ultimate Sword2Status=' ++ *sword2Status);
 
+	succeed;
 
-	# Set package vault_status to 'ARCHIVED'
-        msiString2KeyValPair("", *kvp);
-        msiAddKeyVal(*kvp, UUORGMETADATAPREFIX ++ 'vault_status', ARCHIVED);
-        *err = msiSetKeyValuePairsToObj( *kvp, *vaultPackage, "-C");
-        if (*err!=0 ) {
+        # Only if *sword2status=ARCHIVED finalize all. All other statuses require waiting.
+        # Error statuses (FAILED,INVALID, REJECTED) -> org_vault_status remains PENDING_ARCHIVE_REQUEST 
+        if (*sword2Status=='ARCHIVED') {	
+	    # Set package vault_status to 'ARCHIVED'
+            msiString2KeyValPair("", *kvp);
+            msiAddKeyVal(*kvp, UUORGMETADATAPREFIX ++ 'vault_status', ARCHIVED);
+            *err = msiSetKeyValuePairsToObj( *kvp, *vaultPackage, "-C");
+            if (*err!=0 ) {
                 *status = 'InternalError';
                 succeed;
-        }
+            }
 
-        # All is well so notify datamanager by mail (use org_publication_approval_actor)
+            # All is well so notify datamanager by mail (use org_publication_approval_actor)
 
-        # retrieve package title for notifications.
-	*title = "";
-	*titleKey = UUUSERMETADATAPREFIX ++ "0_Title";
-	foreach(*row in SELECT META_COLL_ATTR_VALUE WHERE COLL_NAME = *vaultPackage AND META_COLL_ATTR_NAME = *titleKey) {
+            # retrieve package title for notifications.
+	    *title = "";
+	    *titleKey = UUUSERMETADATAPREFIX ++ "0_Title";
+	    foreach(*row in SELECT META_COLL_ATTR_VALUE WHERE COLL_NAME = *vaultPackage AND META_COLL_ATTR_NAME = *titleKey) {
                 *title = *row.META_COLL_ATTR_VALUE;
 		break;
-	}
-	writeLine('stdout', *title);
+	    }
+	    writeLine('stdout', *title);
 
-        # retrieve datamanager based on metadata_attr = org_publication_approval_actor
-        *datamanager = "";
-        *actorKey = UUORGMETADATAPREFIX ++ "publication_approval_actor";
-        foreach(*row in SELECT META_COLL_ATTR_VALUE WHERE COLL_NAME = *vaultPackage AND META_COLL_ATTR_NAME = *actorKey) {
+            # retrieve datamanager based on metadata_attr = org_publication_approval_actor
+            *datamanager = "";
+            *actorKey = UUORGMETADATAPREFIX ++ "publication_approval_actor";
+            foreach(*row in SELECT META_COLL_ATTR_VALUE WHERE COLL_NAME = *vaultPackage AND META_COLL_ATTR_NAME = *actorKey) {
               	*userNameAndZone = *row.META_COLL_ATTR_VALUE;
                 uuGetUserAndZone(*userNameAndZone, *datamanager, *zone);
                 break;
-        }
-	writeLine('stdout', *datamanager);
+            }
+	    writeLine('stdout', *datamanager);
 
 
-        # retrieve yodaDOI - must become DANS DOI!! org_publication_yodaDOI
-        *yodaDOI = "";
-        *yodaDOIKey = UUORGMETADATAPREFIX ++ "publication_yodaDOI";
-        foreach(*row in SELECT META_COLL_ATTR_VALUE WHERE COLL_NAME = *vaultPackage AND META_COLL_ATTR_NAME = *yodaDOIKey) {
+            # retrieve yodaDOI - must become DANS DOI!! org_publication_yodaDOI
+            *yodaDOI = "";
+            *yodaDOIKey = UUORGMETADATAPREFIX ++ "publication_yodaDOI";
+            foreach(*row in SELECT META_COLL_ATTR_VALUE WHERE COLL_NAME = *vaultPackage AND META_COLL_ATTR_NAME = *yodaDOIKey) {
                 *yodaDOI = *row.META_COLL_ATTR_VALUE;
                 break;
-        }
-	writeLine('serverLog', *yodaDOI);
+            }
+	    writeLine('serverLog', *yodaDOI);
 
 
-        uuNewArchivedPackageMail(*datamanager, uuClientFullName, *title, *yodaDOI, *mailStatus, *message);
-        if (int(*mailStatus) != 0) {
+            uuNewArchivedPackageMail(*datamanager, uuClientFullName, *title, *yodaDOI, *mailStatus, *message);
+            if (int(*mailStatus) != 0) {
                 writeLine("serverLog", "iiProcessArchiveRequestPending: Datamanager notification failed: *message");
+            }
         }
-
 	*status = 'Success';
 }
 
@@ -165,7 +175,7 @@ iiProcessArchiveRequest(*vaultPackage, *status) {
         # User SWORD2 library to start archiving at DANS
         # This can be asynchronous from creating the bag - maybe do this under 'PENDING_ARCHIVE_REQUEST' handling?
         *urlArchiveStatus = '';
-        iiRuleSword2(*bagitPhysicalPath, *urlArchiveStatus, *status);
+        iiRuleSword2Transfer(*bagitPhysicalPath, *urlArchiveStatus, *status);
         if (*status != 'Success') {
             *status = "ErrorStartingBagTransfer";  # mss hier gelijk status uit iiRuleSword2
             succeed;
@@ -183,9 +193,11 @@ iiProcessArchiveRequest(*vaultPackage, *status) {
         }
 	writeLine('serverLog', 'END:ProcessArchiveRequest: ' ++ *vaultPackage);
 
-        succeed;
 
+        #succeed;
 
+	# All preperation is done. 
+	# Change status to 'PENDING'
 	msiString2KeyValPair("", *kvp);
         msiAddKeyVal(*kvp, UUORGMETADATAPREFIX ++ 'vault_status', PENDING_ARCHIVE_REQUEST);
 
