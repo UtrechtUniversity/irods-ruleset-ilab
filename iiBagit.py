@@ -64,7 +64,6 @@ def iiRuleSword2Status(rule_args, callback, rei):
 #\[out]  rule_args[1] statementURI
 #\[out]  rule_args[2] status
 
-<<<<<<< HEAD
 def iiRuleSword2Transfer(rule_args, callback, rei):
     bagitPhysicalPath = rule_args[0]
 
