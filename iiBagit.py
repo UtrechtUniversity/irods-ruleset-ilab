@@ -57,12 +57,14 @@ def iiRuleSword2Status(rule_args, callback, rei):
     rule_args[1] = response['swordStatus']
     rule_args[2] = response['status']
 
+
 #\ iiRuleSword2
 #\ Brief transfer a bagit to dans and retrieve a url for polling of transfer status
 #\[in]   rule_args[0] bagitPhysicalPath
 #\[out]  rule_args[1] statementURI
 #\[out]  rule_args[2] status
 
+<<<<<<< HEAD
 def iiRuleSword2Transfer(rule_args, callback, rei):
     bagitPhysicalPath = rule_args[0]
 
@@ -166,7 +168,6 @@ def sword2Transfer(callback, bagitFile):
 #    ziph.close()
 
 
-
     response = {}
     response['status'] = 'Unknown'
     response['statementURI'] = ''
@@ -221,7 +222,6 @@ def sword2Transfer(callback, bagitFile):
     response['status'] = 'ErrorSWORD2'
     
     return response
-
 
 def copyDataObjectToFileSystem(callback, irodsSourcePath, physicalDestination):
     ret_val = {}
