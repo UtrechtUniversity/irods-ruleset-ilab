@@ -14,11 +14,13 @@ import os
 #
 def getPreservableFormatsLists(callback):
     preservableLists = {}
+    zoneName = ""
+    clientZone = callback.uuClientZone(zoneName)['arguments'][0]
 
     # Retrieve all preservable file formats lists on the system.
     ret_val = callback.msiMakeGenQuery(
         "DATA_NAME, COLL_NAME",
-        "COLL_NAME = '/tempZone/yoda/file_formats' AND DATA_NAME like '%%.json'",
+        "COLL_NAME = '/{}/yoda/file_formats' AND DATA_NAME like '%%.json'".format(clientZone),
         irods_types.GenQueryInp())
     query = ret_val["arguments"][2]
 
@@ -52,8 +54,11 @@ def getPreservableFormatsLists(callback):
 # \return List of unpreservable files.
 #
 def getUnpreservableFiles(callback, folder, list):
+    zoneName = ""
+    clientZone = callback.uuClientZone(zoneName)['arguments'][0]
+
     # Retrieve JSON list of preservable file formats.
-    json = parseJson(callback, "/tempZone/yoda/file_formats/" + list + ".json")
+    json = parseJson(callback, "/" + clientZone + "/yoda/file_formats/" + list + ".json")
     preservableFormats = json['formats']
     unpreservableFormats = []
 
@@ -106,3 +111,90 @@ def iiGetPreservableFormatsListsJson(rule_args, callback, rei):
 #
 def iiGetUnpreservableFilesJson(rule_args, callback, rei):
     callback.writeString("stdout", json.dumps(getUnpreservableFiles(callback, rule_args[0], rule_args[1])))
+
+
+# \brief Copy the original metadata xml into the root of the package.
+#
+# \param[in] rule_args[0] Path of a new package in the vault.
+#
+def iiCopyOriginalMetadataToVault(rule_args, callback, rei):
+    vaultPackage = rule_args[0]
+    originalMetadataXml = vaultPackage + "/original/" + IIMETADATAXMLNAME
+
+    # Parse original metadata.
+    tree = parseXml(callback, originalMetadataXml)
+    xmlString = etree.tostring(tree, pretty_print=True, xml_declaration=True, encoding='UTF-8')
+
+    # Retrieve active schema location and space to be added.
+    schemaLocation = getSchemaLocation(callback, vaultPackage)
+
+    # Set 'xsi:schemaLocation' for the vault space.
+    researchSchema = "xsi:schemaLocation=\"" + schemaLocation + " " + IIRESEARCHXSDNAME + "\""
+    vaultSchema = "xsi:schemaLocation=\"" + schemaLocation + " " + IIVAULTXSDNAME + "\""
+    xmlString = xmlString.decode('utf-8')
+    newXmlString = xmlString.replace(researchSchema, vaultSchema, 1)
+
+    # Write new metadata XML.
+    ofFlags = ''
+    xml_file = vaultPackage + '/yoda-metadata[' + str(int(time.time())) + '].xml'
+    ret_val = callback.msiDataObjCreate(xml_file, ofFlags, 0)
+    fileHandle = ret_val['arguments'][2]
+    callback.msiDataObjWrite(fileHandle, newXmlString, 0)
+    callback.msiDataObjClose(fileHandle, 0)
+
+
+# \brief Get the provenance log as JSON.
+#
+# \param[in] folder Path of a folder in research or vault space.
+#
+# \return Provenance log as JSON.
+#
+def getProvenanceLog(callback, folder):
+    provenance_log = []
+
+    # Retrieve all provenance logs on a folder.
+    ret_val = callback.msiMakeGenQuery(
+        "order(META_COLL_ATTR_VALUE)",
+        "COLL_NAME = '%s' AND META_COLL_ATTR_NAME = 'org_action_log'" % (folder),
+        irods_types.GenQueryInp())
+    query = ret_val["arguments"][2]
+
+    ret_val = callback.msiExecGenQuery(query, irods_types.GenQueryOut())
+    while True:
+        result = ret_val["arguments"][1]
+        for row in range(result.rowCnt):
+            log_item = json.loads(result.sqlResult[0].row(row))
+            provenance_log.append(log_item)
+
+        if result.continueInx == 0:
+            break
+        ret_val = callback.msiGetMoreRows(query, result, 0)
+    callback.msiCloseGenQuery(query, result)
+
+    return provenance_log
+
+
+# \brief Writes the provenance log as a text file into the root of the vault package.
+#
+# \param[in] rule_args[0] Path of a package in the vault.
+#
+def iiWriteProvenanceLogToVault(rule_args, callback, rei):
+    # Retrieve provenance.
+    provenenanceString = ""
+    provenanceLog =  getProvenanceLog(callback, rule_args[0])
+    for item in provenanceLog:
+        dateTime = time.strftime('%Y/%m/%d %H:%M:%S',
+                                 time.localtime(int(item[0])))
+        action = item[1].capitalize()
+        actor = item[2]
+        provenenanceString += dateTime + " - " + action + " - " + actor + "\n"
+
+    # Write provenance log.
+    ofFlags = 'forceFlag='  # File already exists, so must be overwritten.
+    provenanceFile = rule_args[0] + "/Provenance.txt"
+    ret_val = callback.msiDataObjCreate(provenanceFile, ofFlags, 0)
+
+    fileHandle = ret_val['arguments'][2]
+    callback.msiDataObjWrite(fileHandle, provenenanceString, 0)
+    callback.msiDataObjClose(fileHandle, 0)
+

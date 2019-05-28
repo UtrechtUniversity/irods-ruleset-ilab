@@ -2,7 +2,7 @@
 <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
  xmlns:str="http://exslt.org/strings"
  xmlns:date="http://exslt.org/dates-and-times"
- xmlns:yoda="https://utrechtuniversity.github.io/yoda-schemas/default_extended"
+ xmlns:yoda="https://yoda.uu.nl/schemas/default-1"
  extension-element-prefixes="str date"
  xmlns="http://www.w3.org/1999/xhtml"
  version="1.0">

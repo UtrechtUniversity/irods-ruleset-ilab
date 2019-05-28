@@ -1,5 +1,5 @@
 {
-  "$id": "https://utrechtuniversity.github.io/yoda-schemas/default/metadata.json",
+  "$id": "https://yoda.uu.nl/schemas/default-1/metadata.json",
   "definitions": {
     "stringNormal": {
       "type": "string",
@@ -26,6 +26,25 @@
         "Critical"
       ]
     },
+    "optionsDataType": {
+      "type": "string",
+      "enum": [
+        "Audiovisual",
+        "Collection",
+        "Dataset",
+        "Event",
+        "Image",
+        "InteractiveResource",
+        "Model",
+        "PhysicalObject",
+        "Service",
+        "Software",
+        "Sound",
+        "Text",
+        "Workflow",
+        "Other"
+      ]
+    },      
     "optionsNameIdentifierScheme": {
       "type": "string",
       "enum": [
@@ -758,6 +777,10 @@
           "$ref": "#/definitions/optionsDataClassification",
           "title": "Data classification"
         },
+        "Data_Type": {
+          "$ref": "#/definitions/optionsDataType",
+          "title": "Data type"
+        },	  
         "Collection_Name": {
           "$ref": "#/definitions/stringNormal",
           "title": "Name of collection"
@@ -779,7 +802,11 @@
               }
             }
           }
-        }
+        },
+        "Remarks": {
+          "$ref": "#/definitions/stringLong",
+          "title": "Remarks"
+        }	  
       }
     },
     "Rights-group": {

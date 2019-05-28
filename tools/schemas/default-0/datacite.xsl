@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <xsl:stylesheet version="1.0"
-   xmlns:yoda="https://utrechtuniversity.github.io/yoda-schemas/default_extended"
+   xmlns:yoda="https://yoda.uu.nl/schemas/default-0"
    xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
    xmlns="http://datacite.org/schema/kernel-4">
@@ -67,7 +67,7 @@
         </rightsList>
 
         <resourceType resourceTypeGeneral="Dataset">
-            <xsl:value-of select="yoda:Data_Type"/>
+            <xsl:text>Dataset</xsl:text>
         </resourceType>
 
         <xsl:if test="(yoda:Related_Datapackage/yoda:Properties/yoda:Persistent_Identifier/yoda:Identifier) and (yoda:Related_Datapackage/yoda:Relation_Type)">

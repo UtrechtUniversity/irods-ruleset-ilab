@@ -2,7 +2,7 @@
 # \brief     This file contains rules related to metadata to a dataset.
 # \author    Paul Frederiks
 # \author    Lazlo Westerhof
-# \copyright Copyright (c) 2017-2018, Utrecht University. All rights reserved.
+# \copyright Copyright (c) 2017-2019, Utrecht University. All rights reserved.
 # \license   GPLv3, see LICENSE.
 
 
@@ -86,7 +86,8 @@ iiFrontGetJsonSchema(*folder, *result, *status, *statusInfo)
         *groupName = elem(*pathElems, 2);
 
         # Get category name.
-        uuGroupGetCategory(*groupName, *category, *subcategory);
+        uuGetBaseGroup(*groupName, *baseName);
+        uuGroupGetCategory(*baseName, *category, *subcategory);
         *jsonColl = "/*rodsZone" ++ IISCHEMACOLLECTION ++ "/" ++ *category;
         *jsonName = IIJSONNAME;
 
@@ -781,6 +782,8 @@ iiIngestDatamanagerMetadataIntoVault(*metadataXmlPath, *status, *statusInfo) {
 	}
 
 	iiAddActionLogRecord(*actor, *vaultPackagePath, "modified metadata");
+	iiWriteProvenanceLogToVault(*vaultPackagePath);
+
 	# Add action log record
 	#DEBUG writeLine("serverLog", "iiIngestDatamanagerMetadataIntoVault: Removing metadata xml from datamanager folder");
 	*err = errorcode(msiDataObjUnlink("objPath=*metadataXmlPath++++forceFlag=", *statusBuf));
