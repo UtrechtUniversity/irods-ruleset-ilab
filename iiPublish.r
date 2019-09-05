@@ -6,12 +6,152 @@
 # \copyright Copyright (c) 2017-2019, Utrecht University. All rights reserved.
 # \license   GPLv3, see LICENSE.
 
-# \brief Generate a dataCite compliant XML using XSLT.
+
+
+
+
+# \brief Generate a dataCite compliant XML based up yoda-metadata.json
 #
 # \param[in] publicationConfig      Configuration is passed as key-value-pairs throughout publication process
 # \param[in,out] publicationState   The state of the publication process is passed around as key-value-pairs
 #
 iiGenerateDataCiteXml(*publicationConfig, *publicationState) {
+	*combiXmlPath = *publicationState.combiXmlPath;
+
+        *combiJsonPath = *publicationState.combiJsonPath;
+
+	*randomId = *publicationState.randomId;
+	
+        *vaultPackage = *publicationState.vaultPackage;  ### NODIG???
+
+	uuChopPath(*combiXmlPath, *tempColl, *_);
+	*dataCiteXmlPath = *tempColl ++ "/" ++ *randomId ++ "-dataCite.xml";
+
+	*pathElems = split(*vaultPackage, "/");
+	*rodsZone = elem(*pathElems, 0);
+	*vaultGroup = elem(*pathElems, 2);
+	uuGetBaseGroup(*vaultGroup, *baseGroup);
+	uuGroupGetCategory(*baseGroup, *category, *subcategory);
+
+        # Create DataCiteXml based on content in *combiJsonPath
+	*buf = '' ## initialize before handover to Python
+	iiCreateDataCiteXmlOnJson(*combiJsonPath, *buf)
+
+        msiDataObjCreate(*dataCiteXmlPath, "forceFlag=", *fd);
+        msiDataObjWrite(*fd, *buf, *len);                       # Get length back
+        msiDataObjClose(*fd, *status);
+        *publicationState.dataCiteXmlPath = *dataCiteXmlPath;
+        *publicationState.dataCiteXmlLen = str(*len);
+        #DEBUG writeLine("serverLog", "iiGenerateDataCiteXml: Generated *dataCiteXmlPath");
+
+
+
+
+
+#	*dataCiteXslPath = "";
+#	*xslColl = "/*rodsZone" ++ IISCHEMACOLLECTION ++ "/" ++ *category;
+#	*xslName = IIDATACITEXSLNAME;
+#	foreach(*row in SELECT COLL_NAME, DATA_NAME WHERE COLL_NAME = *xslColl AND DATA_NAME = *xslName) {
+#		*dataCiteXslPath = *row.COLL_NAME ++ "/" ++ *row.DATA_NAME;
+#	}
+
+#	if (*dataCiteXslPath == "") {
+#		*dataCiteXslPath = "/*rodsZone" ++ IISCHEMACOLLECTION ++ "/" ++ IIDEFAULTSCHEMANAME ++ "/" ++ IIDATACITEXSLNAME;
+#	}
+
+#	*err = errorcode(msiXsltApply(*dataCiteXslPath, *combiXmlPath, *buf));
+
+
+#	if (*err < 0) {
+#		writeLine("serverLog", "iiGenerateDataCiteXml: failed to apply Xslt *dataCiteXslPath to *combiXmlPath. errorcode *err");
+#		*publicationState.status = "Unrecoverable";
+#	} else {
+# 		msiDataObjCreate(*dataCiteXmlPath, "forceFlag=", *fd);
+#		msiDataObjWrite(*fd, *buf, *len);
+#		msiDataObjClose(*fd, *status);
+#		*publicationState.dataCiteXmlPath = *dataCiteXmlPath;
+#		*publicationState.dataCiteXmlLen = str(*len);
+#		#DEBUG writeLine("serverLog", "iiGenerateDataCiteXml: Generated *dataCiteXmlPath");
+#	}
+}
+
+
+
+# \brief Join system metadata with the user metadata in yoda-metadata.json.
+#
+# \param[in] publicationConfig      Configuration is passed as key-value-pairs throughout publication process
+# \param[in,out] publicationState   The state of the publication process is also kept in a key-value-pairs
+#
+iiGenerateCombiJson(*publicationConfig, *publicationState){
+
+        *tempColl = "/" ++ $rodsZoneClient ++ IIPUBLICATIONCOLLECTION;
+        *davrodsAnonymousVHost = *publicationConfig.davrodsAnonymousVHost;
+
+        *vaultPackage = *publicationState.vaultPackage;
+        *randomId = *publicationState.randomId;
+        *yodaDOI = *publicationState.yodaDOI;
+        *lastModifiedDateTime = *publicationState.lastModifiedDateTime;
+
+        *subPath = triml(*vaultPackage, "/home/");
+        msiGetIcatTime(*now, "unix");
+        *publicationDate = uuiso8601date(*now);
+
+        *openAccessLink = '';
+        if (*publicationState.accessRestriction like "Open*") {
+           *openAccessLink = 'https://*davrodsAnonymousVHost/*subPath';
+        }
+
+        *licenseUri = '';
+        if (iiHasKey(*publicationState, "licenseUri")) {
+           licenseUri = *publicationState.licenseUri;
+        }
+
+        *combiXmlPath = "*tempColl/*randomId-combi.xml";
+
+
+	# *metadataJsonPath contains latest json
+	iiGetLatestVaultMetadataJson(*vaultPackage, *metadataJsonPath, *metadataJsonSize);
+
+	# Combine content of current *metadataJsonPath with system info and creates a new file in *combiXmlPath
+        iiCreateCombiMetadataJson(*metadataJsonPath, *combiJsonPath, *lastModifiedDateTime, *yodaDOI, *publicationDate, *openAccessLink, *licenseUri)
+        
+        #DEBUG writeLine("serverLog", "iiGenerateCombiXml: generated *combiXmlPath");
+
+	*publicationState.combiJsonPath = *combiJsonPath;
+#
+#
+#        msiDataObjOpen("objPath=*metadataXmlPath", *fd);
+#        msiDataObjRead(*fd, *metadataXmlSize - 12, *buf);
+#        msiDataObjClose(*fd, *status);
+#        msiDataObjCreate(*combiXmlPath, "forceFlag=", *fd);
+#        msiDataObjWrite(*fd, *buf, *lenOut);
+#        msiDataObjWrite(*fd, *systemMetadata, *lenOut);
+#        msiDataObjClose(*fd, *status);
+#        #DEBUG writeLine("serverLog", "iiGenerateCombiXml: generated *combiXmlPath");
+#        *publicationState.combiXmlPath = *combiXmlPath;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# \brief Generate a dataCite compliant XML using XSLT.
+#
+# \param[in] publicationConfig      Configuration is passed as key-value-pairs throughout publication process
+# \param[in,out] publicationState   The state of the publication process is passed around as key-value-pairs
+#
+obsolete_iiGenerateDataCiteXml(*publicationConfig, *publicationState) {
 	*combiXmlPath = *publicationState.combiXmlPath;
 	*randomId = *publicationState.randomId;
 	*vaultPackage = *publicationState.vaultPackage;
