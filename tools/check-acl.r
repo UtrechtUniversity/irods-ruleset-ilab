@@ -132,6 +132,7 @@ checkAccess(*path, *oldAccess, *newAccess, *update) {
 	foreach (*owner in *owners) {
 	    *newOwn = *owner;
 	    if (*newOwn != "") {
+		# Mark the owner ID in oldAccess so that its acls are not removed.
 		*oldAccess."*newOwn" = "";
 		foreach (*user in SELECT USER_NAME WHERE USER_ID = *newOwn) {
 		    *newOwn = *user.USER_NAME;
@@ -139,12 +140,17 @@ checkAccess(*path, *oldAccess, *newAccess, *update) {
 		}
 	    }
 	}
+	# *own is a comma-separated name list, *newOwn is at most one name.
+	# If the current owners do not equal the single owner of the parent
+	# collection, we update the ACLs.
 	if (*own != *newOwn) {
 	    writeLine("stdout", "*path: owner *own should be *newOwn");
 
 	    if (*update) {
 		# add new owner
-		msiSetACL("default", "admin:own", *newOwn, *path);
+		if (*newOwn != "") {
+		    msiSetACL("default", "admin:own", *newOwn, *path);
+		}
 		# remove old access
 		foreach (*key in *oldAccess) {
 		    if (*key != "own" && *oldAccess."*key" != "") {
