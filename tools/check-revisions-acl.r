@@ -2,7 +2,7 @@
 #
 # Report, and optionally fix, bad ACLs for revisions.
 #
-# usage: irule -F check-revisions-acl.r acl
+# usage: irule -F check-revisions-acl.r
 #        irule -F check-revisions-acl.r "*update=1"
 #
 checkACL() {
