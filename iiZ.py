@@ -19,9 +19,7 @@ def trace_on():
 
     def wrap(fn, name):
         def wrapper(*args, **kwargs):
-            depth = len(inspect.stack())
-            if depth%2 == 0:
-                depth /= 2
+            depth = len(inspect.stack()) // 2
             x = time.time()
             result = fn(*args, **kwargs)
             y = time.time()
