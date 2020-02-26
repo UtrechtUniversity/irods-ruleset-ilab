@@ -238,7 +238,8 @@ iiPostVaultStatusTransition(*folder, *actor, *newVaultStatus) {
 	on (*newVaultStatus == SUBMITTED_FOR_PUBLICATION) {
 	        iiVaultGetActionActor(*folder, *actor, *actionActor);
 		iiAddActionLogRecord(*actionActor, *folder, "submitted for publication");
-		iiWriteProvenanceLogToVault(*folder);
+		# LW: disable provenance log in publication for now
+		#iiWriteProvenanceLogToVault(*folder);
 
 		# Store actor of publication submission.
 		msiString2KeyValPair("", *kvp);
@@ -248,7 +249,8 @@ iiPostVaultStatusTransition(*folder, *actor, *newVaultStatus) {
 	on (*newVaultStatus == APPROVED_FOR_PUBLICATION) {
 	        iiVaultGetActionActor(*folder, *actor, *actionActor);
 		iiAddActionLogRecord(*actionActor, *folder, "approved for publication");
-		iiWriteProvenanceLogToVault(*folder);
+		# LW: disable provenance log in publication for now
+		#iiWriteProvenanceLogToVault(*folder);
 
 		# Store actor of publication approval.
 		msiString2KeyValPair("", *kvp);
@@ -257,22 +259,26 @@ iiPostVaultStatusTransition(*folder, *actor, *newVaultStatus) {
 	}
 	on (*newVaultStatus == PUBLISHED) {
 		iiAddActionLogRecord("system", *folder, "published");
-		iiWriteProvenanceLogToVault(*folder);
+		# LW: disable provenance log in publication for now
+		#iiWriteProvenanceLogToVault(*folder);
 	}
 	on (*newVaultStatus == PENDING_DEPUBLICATION) {
 	        iiVaultGetActionActor(*folder, *actor, *actionActor);
 		iiAddActionLogRecord(*actionActor, *folder, "requested depublication");
-		iiWriteProvenanceLogToVault(*folder);
+		# LW: disable provenance log in publication for now
+		#iiWriteProvenanceLogToVault(*folder);
 	}
 	on (*newVaultStatus == DEPUBLISHED) {
 	        iiVaultGetActionActor(*folder, *actor, *actionActor);
 		iiAddActionLogRecord("system", *folder, "depublished");
-		iiWriteProvenanceLogToVault(*folder);
+		# LW: disable provenance log in publication for now
+		#iiWriteProvenanceLogToVault(*folder);
 	}
 	on (*newVaultStatus == PENDING_REPUBLICATION) {
 	        iiVaultGetActionActor(*folder, *actor, *actionActor);
 		iiAddActionLogRecord(*actionActor, *folder, "requested republication");
-		iiWriteProvenanceLogToVault(*folder);
+		# LW: disable provenance log in publication for now
+		#iiWriteProvenanceLogToVault(*folder);
 	}
 	on (true) {
 		nop;

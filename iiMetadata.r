@@ -844,7 +844,8 @@ iiIngestDatamanagerMetadataIntoVault(*metadataXmlPath, *status, *statusInfo) {
 	}
 
 	iiAddActionLogRecord(*actor, *vaultPackagePath, "modified metadata");
-	iiWriteProvenanceLogToVault(*vaultPackagePath);
+	# LW: disable provenance log in publication for now
+	#iiWriteProvenanceLogToVault(*vaultPackagePath);
 
 	# Add action log record
 	#DEBUG writeLine("serverLog", "iiIngestDatamanagerMetadataIntoVault: Removing metadata xml from datamanager folder");

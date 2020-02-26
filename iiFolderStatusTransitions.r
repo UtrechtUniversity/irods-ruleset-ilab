@@ -524,7 +524,8 @@ iiFolderSecure(*folder) {
 
 	# Copy and write provenance log.
 	iiCopyActionLog(*folder, *target);
-	iiWriteProvenanceLogToVault(*target);
+	# LW: disable provenance log in publication for now
+	#iiWriteProvenanceLogToVault(*target);
 
 	# Set vault permissions for new vault package.
 	iiSetVaultPermissions(*folder, *target);
