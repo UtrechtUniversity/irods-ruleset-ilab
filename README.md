@@ -1,3 +1,5 @@
+This repository is archived and not actively maintained.
+
 Research module Rules and Policies for Yoda/iRODS
 ==========
 
